@@ -1,8 +1,33 @@
-push:
-  branches:
-    - main
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint
+    steps:
+    - uses: actions/checkout@v2
+    - name: Lint shell script
+      uses: azohra/shell-linter@v0.3.0
+      with:
+        path: "entrypoint.sh"
+  build:
+    runs-on: ubuntu-latest
+    name: Build the app
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: yarn build
+        env:
+          MONGODB_API_SECRET: ${{ secrets.MONGODB_API_SECRET }}
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
@@ -12,6 +37,5 @@ jobs:
         uses: cloudflare/wrangler-action@2.0.0
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
-          
-
-        
+          environment: "production"
+ 
