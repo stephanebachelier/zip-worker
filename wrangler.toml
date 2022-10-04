@@ -1,4 +1,4 @@
-name = "zip-worker"
+name = "search"
 main = "src/index.ts"
 compatibility_date = "2022-10-04"
 
