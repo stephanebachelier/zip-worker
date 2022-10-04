@@ -26,18 +26,30 @@ type SearchResult = {
   name: string
 }
 
-const buildResponse = function (status: number, message: string, contentType = 'text/plain'): Response {
-  return new Response(message, {
+type Origin = string | null
+
+const buildResponse = (status: number, message: string, headers?: Record<string, string> | null): Response =>
+  new Response(message, {
     status,
-    headers: {
-      'content-type': contentType
+    headers: headers ?? {
+      'content-type': 'text/plain'
     }
   })
-}
 
-const buildResultsResponse = function (results: Array<SearchResult>):Response {
-  return buildResponse(200, JSON.stringify({ results }), 'application/json')
-}
+/**
+ * @name buildResultsResponse
+ * @desc |
+ *   Need to inject origin as the client code does not send an preflight request due to a search
+ *   using a GET request.
+ * @param results
+ * @param origin
+ * @returns Response
+ */
+const buildResultsResponse = (results: Array<SearchResult>,  origin: Origin):Response =>
+  buildResponse(200, JSON.stringify({ results }), {
+    'content-type': 'application/json',
+    ...(origin ? setCorsHeaders(origin) : {})
+  })
 
 const buildSearchString = (search: SearchQuery):string =>
   Object.keys(search)
@@ -78,30 +90,29 @@ const detectEdgeCases = (params: URLSearchParams): null | undefined => {
   }
 }
 
+const setCorsHeaders = (origin: string) => ({
+  'Access-Control-Allow-Origin': origin,
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+})
+
+const hasValidOrigin = (request: Request, env:Env):Boolean =>
+  request.headers.get('Origin') !== null &&
+  request.headers.get('Origin') === env.DOMAIN
+
 function handleOptions(request:Request, env:Env) {
   let headers = request.headers;
   console.log('origin', headers.get('Origin'))
 
-  if (
-    headers.get('Origin') !== null &&
-    headers.get('Origin') === env.DOMAIN
-  ) {
+  if (hasValidOrigin(request, env)) {
     // Handle CORS pre-flight request.
     return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': env.DOMAIN,
-        'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
-        'Access-Control-Max-Age': '86400',
-      },
+      headers: setCorsHeaders(env.DOMAIN)
     });
   } else {
     // Handle standard OPTIONS request.
     return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': env.DOMAIN,
-        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-        'Access-Control-Max-Age': '86400',
-      },
+      headers: setCorsHeaders(env.DOMAIN)
     });
   }
 }
@@ -124,9 +135,11 @@ export default {
     const params = url.searchParams
     console.log(params)
 
+    const origin: Origin = hasValidOrigin(request, env) ? env.DOMAIN : null
+
     try {
       if (detectEdgeCases(params) === null) {
-        return buildResultsResponse([])
+        return buildResultsResponse([], origin)
       }
     } catch (e) {
       return buildResponse(400, 'Bad Request') 
@@ -154,7 +167,7 @@ export default {
 
     console.log(response.status)
     console.log(response.statusText)
-    console.log(response.headers)
-    return buildResultsResponse(await processResults(response));
+
+    return buildResultsResponse(await processResults(response), origin);
   },
 };
