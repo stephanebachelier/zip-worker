@@ -11,6 +11,7 @@
 export interface Env {
   MONGODB_API_ENDPOINT: string;
   MONGODB_API_SECRET: string;
+  DOMAIN: string;
 }
 
 type AutoCompleteFlag = 0 | 1
@@ -77,12 +78,45 @@ const detectEdgeCases = (params: URLSearchParams): null | undefined => {
   }
 }
 
+function handleOptions(request:Request, env:Env) {
+  let headers = request.headers;
+  console.log('origin', headers.get('Origin'))
+
+  if (
+    headers.get('Origin') !== null &&
+    headers.get('Origin') === env.DOMAIN &&
+    headers.get('Access-Control-Request-Method') !== null &&
+    headers.get('Access-Control-Request-Headers') !== null
+  ) {
+    // Handle CORS pre-flight request.
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Headers': headers.get('Access-Control-Request-Headers') as string,
+        'Access-Control-Allow-Origin': env.DOMAIN,
+        'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  } else {
+    // Handle standard OPTIONS request.
+    return new Response(null, {
+      headers: {
+        Allow: 'GET, HEAD, OPTIONS',
+      },
+    });
+  }
+}
+
 export default {
   async fetch(
     request: Request,
     env: Env,
     ctx: ExecutionContext
   ): Promise<Response> {
+    if (request.method === 'OPTIONS') {
+      return handleOptions(request, env)
+    }
+
     if (request.method !== 'GET') {
       return buildResponse(405, 'Method Not Allowed')
     }
