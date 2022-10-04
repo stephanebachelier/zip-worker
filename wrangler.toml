@@ -1,3 +1,16 @@
 name = "zip-worker"
 main = "src/index.ts"
 compatibility_date = "2022-10-04"
+
+[build]
+command = "yarn run build"
+
+[vars]
+MONGODB_API_ENDPOINT = "https://europe-west1.gcp.data.mongodb-api.com/app/search-sldoj/endpoint/search"
+
+[env.staging]
+name = "search-staging"
+workers_dev = true
+
+[env.production]
+name = "search"
