@@ -13,6 +13,18 @@ export interface Env {
   MONGODB_API_SECRET: string;
 }
 
+type AutoCompleteFlag = 0 | 1
+
+type SearchQuery = Record<string, unknown> & {
+  search: string
+  autocomplete: AutoCompleteFlag
+}
+
+type SearchResult = {
+  zip: string
+  name: string
+}
+
 const buildResponse = function (status: number, message: string, contentType = 'text/plain'): Response {
   return new Response(message, {
     status,
@@ -22,20 +34,8 @@ const buildResponse = function (status: number, message: string, contentType = '
   })
 }
 
-const buildResultsResponse = function (results: Array):Response {
+const buildResultsResponse = function (results: Array<SearchResult>):Response {
   return buildResponse(200, JSON.stringify({ results }), 'application/json')
-}
-
-type AutoCompleteFlag = 0 | 1
-
-type SearchQuery = Record<string, unknown> & {
-  search: string
-  autocomplete: AutoCompleteFlag
-}
-
-type SearchResult = {
-  zipCode: string
-  name: string
 }
 
 const buildSearchString = (search: SearchQuery):string =>
