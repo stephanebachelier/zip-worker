@@ -50,7 +50,9 @@ const processResults = async (response: Response): Promise<Array<SearchResult>> 
   }
 
   try {
-    return response.json()
+    const results:Array<SearchResult> = (await response.json()) || []
+    console.log(`Found ${results.length} entries`)
+    return results
   } catch (e) {
     throw new Error('Invalid response')
   }
