@@ -7,9 +7,6 @@ account_id = "ea4050075340f70ec8320cf50b47260c"
 [build]
 command = "yarn run build"
 
-[vars]
-MONGODB_API_ENDPOINT = "https://europe-west1.gcp.data.mongodb-api.com/app/search-sldoj/endpoint/search"
-
 [env.staging]
 name = "search-staging"
 workers_dev = true
