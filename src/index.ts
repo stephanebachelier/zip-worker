@@ -84,16 +84,13 @@ function handleOptions(request:Request, env:Env) {
 
   if (
     headers.get('Origin') !== null &&
-    headers.get('Origin') === env.DOMAIN &&
-    headers.get('Access-Control-Request-Method') !== null &&
-    headers.get('Access-Control-Request-Headers') !== null
+    headers.get('Origin') === env.DOMAIN
   ) {
     // Handle CORS pre-flight request.
     return new Response(null, {
       headers: {
-        'Access-Control-Allow-Headers': headers.get('Access-Control-Request-Headers') as string,
         'Access-Control-Allow-Origin': env.DOMAIN,
-        'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
+        'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
         'Access-Control-Max-Age': '86400',
       },
     });
@@ -101,7 +98,9 @@ function handleOptions(request:Request, env:Env) {
     // Handle standard OPTIONS request.
     return new Response(null, {
       headers: {
-        Allow: 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Origin': env.DOMAIN,
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Max-Age': '86400',
       },
     });
   }
