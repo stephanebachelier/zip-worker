@@ -1,6 +1,7 @@
 {
   "name": "zip-worker",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "module": "./dist/index.mjs",
   "devDependencies": {
     "@cloudflare/workers-types": "^3.16.0",
     "esbuild": "^0.15.10",
