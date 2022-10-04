@@ -28,13 +28,15 @@ type SearchResult = {
 
 type Origin = string | null
 
-const buildResponse = (status: number, message: string, headers?: Record<string, string> | null): Response =>
-  new Response(message, {
+const buildResponse = (status: number, message: string, headers?: Record<string, string> | null): Response => {
+  console.log('buildResponse', headers)
+  return new Response(message, {
     status,
     headers: headers ?? {
       'content-type': 'text/plain'
     }
   })
+}
 
 /**
  * @name buildResultsResponse
@@ -45,11 +47,16 @@ const buildResponse = (status: number, message: string, headers?: Record<string,
  * @param origin
  * @returns Response
  */
-const buildResultsResponse = (results: Array<SearchResult>,  origin: Origin):Response =>
-  buildResponse(200, JSON.stringify({ results }), {
+const buildResultsResponse = (results: Array<SearchResult>,  origin: Origin):Response => {
+  const headers = {
     'content-type': 'application/json',
     ...(origin ? setCorsHeaders(origin) : {})
-  })
+  }
+  console.log('>>> origin', origin)
+  console.log('>>> headers')
+  console.log(headers)
+  return buildResponse(200, JSON.stringify({ results }), headers)
+}
 
 const buildSearchString = (search: SearchQuery):string =>
   Object.keys(search)
@@ -96,9 +103,10 @@ const setCorsHeaders = (origin: string) => ({
   'access-control-max-age': '86400',
 })
 
-const hasValidOrigin = (request: Request, env:Env):Boolean =>
-  request.headers.get('origin') !== null &&
-  request.headers.get('origin') === env.DOMAIN
+const hasValidOrigin = (request: Request, env:Env):Boolean => {
+  console.log('hasValidOrigin', request.headers.get('origin'), env.DOMAIN)
+  return request.headers.get('origin') === env.DOMAIN
+}
 
 function handleOptions(request:Request, env:Env) {
   let headers = request.headers;
