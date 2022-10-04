@@ -91,18 +91,18 @@ const detectEdgeCases = (params: URLSearchParams): null | undefined => {
 }
 
 const setCorsHeaders = (origin: string) => ({
-  'Access-Control-Allow-Origin': origin,
-  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-  'Access-Control-Max-Age': '86400',
+  'access-control-allow-origin': origin,
+  'access-control-allow-methods': 'GET, HEAD, OPTIONS',
+  'access-control-max-age': '86400',
 })
 
 const hasValidOrigin = (request: Request, env:Env):Boolean =>
-  request.headers.get('Origin') !== null &&
-  request.headers.get('Origin') === env.DOMAIN
+  request.headers.get('origin') !== null &&
+  request.headers.get('origin') === env.DOMAIN
 
 function handleOptions(request:Request, env:Env) {
   let headers = request.headers;
-  console.log('origin', headers.get('Origin'))
+  console.log('origin', headers.get('origin'))
 
   if (hasValidOrigin(request, env)) {
     // Handle CORS pre-flight request.
