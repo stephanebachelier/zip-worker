@@ -1,7 +1,7 @@
-name: Deploy Production
+name: Deploy Staging
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
@@ -9,5 +9,5 @@ jobs:
   buildAndDeploy:
     uses: ./.github/workflows/common.yml
     with:
-      environment: production
+      environment: staging
     secrets: inherit
