@@ -29,7 +29,7 @@ type SearchResult = {
 
 type Origin = string | null
 
-const buildResponse = (status: number, message: string, headers?: Record<string, string> | null): Response => {
+const buildResponse = (status: number, message: string | null, headers?: Record<string, string> | null): Response => {
   console.log('buildResponse', headers)
   return new Response(message, {
     status,
@@ -109,7 +109,6 @@ const hasValidOrigin = (request: Request, env:Env):Boolean => {
 
 function handleOptions(request:Request, env:Env) {
   let headers = request.headers;
-  console.log('origin', headers.get('origin'))
 
   if (hasValidOrigin(request, env)) {
     // Handle CORS pre-flight request.
@@ -134,11 +133,7 @@ export default {
       return handleOptions(request, env)
     }
 
-    if (request.method === 'HEAD') {
-      return buildResponse(200, null)
-    }
-
-    if (request.method !== 'GET') {
+    if (!['GET', 'HEAD'].includes(request.method)) {
       return buildResponse(405, 'Method Not Allowed')
     }
 
@@ -146,6 +141,10 @@ export default {
     const params = url.searchParams
 
     const origin: Origin = hasValidOrigin(request, env) ? env.DOMAIN : null
+
+    if (request.method === 'HEAD') {
+      return buildResponse(200, null, setCorsHeaders(env.DOMAIN))
+    }
 
     const cacheTtlValue = parseInt(env.CACHE_TTL, 10)
     // use default if invalid cache TTL
