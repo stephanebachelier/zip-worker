@@ -12,6 +12,7 @@ export interface Env {
   MONGODB_API_ENDPOINT: string;
   MONGODB_API_SECRET: string;
   DOMAIN: string;
+  CACHE_TTL: string;
 }
 
 type AutoCompleteFlag = 0 | 1
@@ -47,14 +48,12 @@ const buildResponse = (status: number, message: string, headers?: Record<string,
  * @param origin
  * @returns Response
  */
-const buildResultsResponse = (results: Array<SearchResult>,  origin: Origin):Response => {
+const buildResultsResponse = (results: Array<SearchResult>, origin: Origin, cacheTtl:number):Response => {
   const headers = {
     'content-type': 'application/json',
+    'cache-control': `s-maxage=${cacheTtl}`,
     ...(origin ? setCorsHeaders(origin) : {})
   }
-  console.log('>>> origin', origin)
-  console.log('>>> headers')
-  console.log(headers)
   return buildResponse(200, JSON.stringify({ results }), headers)
 }
 
@@ -161,21 +160,41 @@ export default {
       autocomplete: query !== null ? 1 : 0
     }
 
-    console.log(searchQuery)
-
     const remoteUrl = `${env.MONGODB_API_ENDPOINT}?${buildSearchString(searchQuery)}`
     console.log(remoteUrl)
-    const init = {
-      headers: {
-        'content-type': 'application/json;charset=UTF-8',
-        'api-key': env.MONGODB_API_SECRET
-      },
-    };
-    const response = await fetch(remoteUrl.toString(), init);
 
-    console.log(response.status)
-    console.log(response.statusText)
+    const cache = caches.default;
+    let cachedResponse = await cache.match(remoteUrl);
 
-    return buildResultsResponse(await processResults(response), origin);
+    console.log(`cache hit : ${cachedResponse !== undefined}`)
+
+    const cacheTtlValue = parseInt(env.CACHE_TTL, 10)
+    // use default if invalid cache TTL
+    const cacheTtl = isNaN(cacheTtlValue) ? 300 : cacheTtlValue
+
+    if (!cachedResponse) {
+      cachedResponse = await fetch(remoteUrl.toString(), {
+        headers: {
+          'content-type': 'application/json;charset=UTF-8',
+          'api-key': env.MONGODB_API_SECRET
+        },
+        cf: {
+          // cacheTtl: env.CACHE_TTL,
+          cacheEverything: true,
+          cacheTtlByStatus: {
+            '200-299': cacheTtl,
+            '404': 1,
+            '500-599': 0
+          }
+        }
+      });
+
+      console.log(cachedResponse.status)
+      console.log(cachedResponse.statusText)
+
+      ctx.waitUntil(cache.put(remoteUrl, cachedResponse.clone()));
+    }
+
+    return buildResultsResponse(await processResults(cachedResponse), origin, cacheTtl);
   },
 };
