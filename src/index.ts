@@ -51,7 +51,7 @@ const buildResponse = (status: number, message: string | null, headers?: Record<
 const buildResultsResponse = (results: Array<SearchResult>, origin: Origin, cacheTtl:number):Response => {
   const headers = {
     'content-type': 'application/json',
-    'cache-control': `s-maxage=${cacheTtl}`,
+    'cache-control': `public, maxage=${cacheTtl}, immutable`,
     ...(origin ? setCorsHeaders(origin) : {})
   }
   return buildResponse(200, JSON.stringify({ results }), headers)
