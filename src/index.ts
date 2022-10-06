@@ -12,6 +12,7 @@ export interface Env {
   MONGODB_API_ENDPOINT: string;
   MONGODB_API_SECRET: string;
   DOMAIN: string;
+  CACHE_TTL: string;
 }
 
 type AutoCompleteFlag = 0 | 1
@@ -161,15 +162,23 @@ export default {
       autocomplete: query !== null ? 1 : 0
     }
 
-    console.log(searchQuery)
-
     const remoteUrl = `${env.MONGODB_API_ENDPOINT}?${buildSearchString(searchQuery)}`
     console.log(remoteUrl)
+
     const init = {
       headers: {
         'content-type': 'application/json;charset=UTF-8',
         'api-key': env.MONGODB_API_SECRET
       },
+      cf: {
+        // cacheTtl: env.CACHE_TTL,
+        catchEverything: true,
+        cacheTtlByStatus: {
+          '200-299': env.CACHE_TTL,
+          '404': 1,
+          '500-599': 0
+        }
+      }
     };
     const response = await fetch(remoteUrl.toString(), init);
 
