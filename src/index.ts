@@ -134,19 +134,26 @@ export default {
       return handleOptions(request, env)
     }
 
+    if (request.method === 'HEAD') {
+      return buildResponse(200, null)
+    }
+
     if (request.method !== 'GET') {
       return buildResponse(405, 'Method Not Allowed')
     }
 
     const url = new URL(request.url)
     const params = url.searchParams
-    console.log(params)
 
     const origin: Origin = hasValidOrigin(request, env) ? env.DOMAIN : null
 
+    const cacheTtlValue = parseInt(env.CACHE_TTL, 10)
+    // use default if invalid cache TTL
+    const cacheTtl = isNaN(cacheTtlValue) ? 300 : cacheTtlValue
+
     try {
       if (detectEdgeCases(params) === null) {
-        return buildResultsResponse([], origin)
+        return buildResultsResponse([], origin, cacheTtl)
       }
     } catch (e) {
       return buildResponse(400, 'Bad Request') 
@@ -167,10 +174,6 @@ export default {
     let cachedResponse = await cache.match(remoteUrl);
 
     console.log(`cache hit : ${cachedResponse !== undefined}`)
-
-    const cacheTtlValue = parseInt(env.CACHE_TTL, 10)
-    // use default if invalid cache TTL
-    const cacheTtl = isNaN(cacheTtlValue) ? 300 : cacheTtlValue
 
     if (!cachedResponse) {
       cachedResponse = await fetch(remoteUrl.toString(), {
