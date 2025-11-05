@@ -162,7 +162,8 @@ async function searchZipCodes(
  * Generate a cache key based on search parameters
  */
 function getCacheKey(searchQuery: SearchQuery): string {
-  return `zip-search:${searchQuery.search}:${searchQuery.autocomplete}`;
+  // return `zip-search:${searchQuery.search}:${searchQuery.autocomplete}`;
+  return `zip-search:${searchQuery.search}`;
 }
 
 export default {
