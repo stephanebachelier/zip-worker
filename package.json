@@ -15,5 +15,8 @@
     "deploy": "wrangler publish",
     "build": "esbuild --bundle --sourcemap --outfile=dist/index.mjs --minify --format=esm ./src/index.ts",
     "format": "prettier --write '**/*.{js,css,json,md}'"
+  },
+  "dependencies": {
+    "mongodb": "^6.20.0"
   }
 }
