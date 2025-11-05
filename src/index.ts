@@ -7,10 +7,9 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
-
+import { MongoClient } from 'mongodb';
 export interface Env {
-  MONGODB_API_ENDPOINT: string;
-  MONGODB_API_SECRET: string;
+  MONGODB_URI: string;
   DOMAIN: string;
   CACHE_TTL: string;
 }
@@ -56,12 +55,6 @@ const buildResultsResponse = (results: Array<SearchResult>, origin: Origin, cach
   }
   return buildResponse(200, JSON.stringify({ results }), headers)
 }
-
-const buildSearchString = (search: SearchQuery):string =>
-  Object.keys(search)
-    .map((key:string) => (`${key}=${encodeURIComponent(search[key] as string)}`))
-    .join('&')
-
 
 const processResults = async (response: Response): Promise<Array<SearchResult>> => {
   if (!response) {
@@ -123,6 +116,55 @@ function handleOptions(request:Request, env:Env) {
   }
 }
 
+/**
+ * Search for zip codes in MongoDB
+ * @param searchTerm - The city name to search for
+ * @param isAutocomplete - Whether this is an autocomplete query
+ * @param mongoUri - MongoDB connection string
+ * @returns Array of search results
+ */
+async function searchZipCodes(
+  searchTerm: string,
+  isAutocomplete: boolean,
+  mongoUri: string
+): Promise<Array<SearchResult>> {
+  const client = new MongoClient(mongoUri);
+
+  try {
+    await client.connect();
+    const db = client.db('zip');
+    const collection = db.collection('zip');
+
+    // Build the query - case insensitive regex search on name field
+    const query = {
+      name: { $regex: searchTerm, $options: 'i' }
+    };
+
+    // For autocomplete, we might want to limit results more aggressively
+    const limit = isAutocomplete ? 10 : 50;
+
+    const results = await collection
+      .find(query)
+      .project({ _id: 0, name: 1, zip: 1 }) // Only return name and zip fields
+      .limit(limit)
+      .toArray();
+
+    return results as Array<SearchResult>;
+  } catch (error) {
+    console.error('MongoDB query error:', error);
+    throw new Error('Database query failed');
+  } finally {
+    await client.close();
+  }
+}
+
+/**
+ * Generate a cache key based on search parameters
+ */
+function getCacheKey(searchQuery: SearchQuery): string {
+  return `zip-search:${searchQuery.search}:${searchQuery.autocomplete}`;
+}
+
 export default {
   async fetch(
     request: Request,
@@ -166,35 +208,38 @@ export default {
       autocomplete: query !== null ? 1 : 0
     }
 
-    const remoteUrl = `${env.MONGODB_API_ENDPOINT}?${buildSearchString(searchQuery)}`
-    console.log(remoteUrl)
+    // Create a cache key for this search
+    const cacheKey = new Request(
+      `https://cache.internal/${getCacheKey(searchQuery)}`,
+      request
+    );
 
     const cache = caches.default;
-    let cachedResponse = await cache.match(remoteUrl);
+    let cachedResponse = await cache.match(cacheKey);
 
     console.log(`cache hit : ${cachedResponse !== undefined}`)
 
     if (!cachedResponse) {
-      cachedResponse = await fetch(remoteUrl.toString(), {
-        headers: {
-          'content-type': 'application/json;charset=UTF-8',
-          'api-key': env.MONGODB_API_SECRET
-        },
-        cf: {
-          // cacheTtl: env.CACHE_TTL,
-          cacheEverything: true,
-          cacheTtlByStatus: {
-            '200-299': cacheTtl,
-            '404': 1,
-            '500-599': 0
-          }
-        }
-      });
+      try {
+        const results = await searchZipCodes(
+          searchQuery.search,
+          searchQuery.autocomplete === 1,
+          env.MONGODB_URI
+        );
 
-      console.log(cachedResponse.status)
-      console.log(cachedResponse.statusText)
+        console.log(`Found ${results.length} entries`)
 
-      ctx.waitUntil(cache.put(remoteUrl, cachedResponse.clone()));
+        // Build the response
+        const response = buildResultsResponse(results, origin, cacheTtl);
+
+        // Store in cache for future requests
+        ctx.waitUntil(cache.put(cacheKey, response.clone()));
+
+        return response;
+      } catch (error) {
+        console.error('Search error:', error);
+        return buildResponse(500, 'Internal Server Error');
+      }
     }
 
     return buildResultsResponse(await processResults(cachedResponse), origin, cacheTtl);
