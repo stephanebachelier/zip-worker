@@ -1,11 +1,9 @@
 name = "search"
 main = "src/index.ts"
-compatibility_date = "2022-10-04"
+compatibility_flags = ["nodejs_compat_v2"]
+compatibility_date = "2025-03-20"
 
 account_id = "ea4050075340f70ec8320cf50b47260c"
-
-[build]
-command = "yarn run build"
 
 [env.staging]
 name = "search-staging"
@@ -13,3 +11,9 @@ workers_dev = true
 
 [env.production]
 name = "search"
+
+[observability.logs]
+enabled = false
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
