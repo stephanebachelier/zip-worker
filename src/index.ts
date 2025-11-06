@@ -26,6 +26,10 @@ type SearchResult = {
   name: string
 }
 
+type ResponseBody = {
+  results: Array<SearchResult>
+}
+
 type Origin = string | null
 
 const buildResponse = (status: number, message: string | null, headers?: Record<string, string> | null): Response => {
@@ -62,7 +66,8 @@ const processResults = async (response: Response): Promise<Array<SearchResult>> 
   }
 
   try {
-    const results:Array<SearchResult> = (await response.json()) || []
+    console.log('process results from cached response')
+    const results: Array<SearchResult> = (await response.json<ResponseBody>()).results ?? []
     console.log(`Found ${results.length} entries`)
     return results
   } catch (e) {
@@ -128,6 +133,7 @@ async function searchZipCodes(
   isAutocomplete: boolean,
   mongoUri: string
 ): Promise<Array<SearchResult>> {
+  console.log('connect to mongo', mongoUri);
   const client = new MongoClient(mongoUri);
 
   try {
@@ -137,7 +143,8 @@ async function searchZipCodes(
 
     // Build the query - case insensitive regex search on name field
     const query = {
-      name: { $regex: searchTerm, $options: 'i' }
+      name: { $regex: searchTerm, $options: 'i' },
+      name2: ''
     };
 
     // For autocomplete, we might want to limit results more aggressively
@@ -147,9 +154,10 @@ async function searchZipCodes(
       .find(query)
       .project({ _id: 0, name: 1, zip: 1 }) // Only return name and zip fields
       .limit(limit)
+      .sort('zip', 1)
       .toArray();
 
-    return results as Array<SearchResult>;
+    return results.map(({ name, zip }) => ({ name: `${zip} ${name}`, zip })) as Array<SearchResult>;
   } catch (error) {
     console.error('MongoDB query error:', error);
     throw new Error('Database query failed');
@@ -211,7 +219,7 @@ export default {
 
     // Create a cache key for this search
     const cacheKey = new Request(
-      `https://cache.internal/${getCacheKey(searchQuery)}`,
+      `https://cache.internal/v2/${getCacheKey(searchQuery)}`,
       request
     );
 
@@ -242,7 +250,7 @@ export default {
         return buildResponse(500, 'Internal Server Error');
       }
     }
-
+ 
     return buildResultsResponse(await processResults(cachedResponse), origin, cacheTtl);
   },
 };
