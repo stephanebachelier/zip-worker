@@ -140,11 +140,14 @@ async function searchZipCodes(
     await client.connect();
     const db = client.db('zip');
     const collection = db.collection('zip');
+    const isAlphaSearch = isNaN(parseInt(searchTerm));
 
     // Build the query - case insensitive regex search on name field
-    const query = {
+    const query = isAlphaSearch ? {
       name: { $regex: searchTerm, $options: 'i' },
-      name2: ''
+      // name2: ''
+    } : {
+      zip: { $regex: searchTerm, $options: 'i' },
     };
 
     // For autocomplete, we might want to limit results more aggressively
